@@ -83,6 +83,58 @@ function escapeHTML(value) {
   });
 }
 
+
+async function searchBookCover(title, author) {
+  try {
+    const params = new URLSearchParams({
+      title: title,
+      author: author,
+      fields: "title,author_name,cover_i",
+      limit: "5"
+    });
+
+    const response = await fetch(
+      `https://openlibrary.org/search.json?${params}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Book search failed");
+    }
+
+    const data = await response.json();
+    const results = data.docs || [];
+
+    const normalize = text =>
+      text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+    const matchedBook = results.find(book => {
+      const titleMatches =
+        book.title &&
+        normalize(book.title) === normalize(title);
+
+      const authorMatches =
+        !book.author_name ||
+        book.author_name.some(name =>
+          normalize(name).includes(normalize(author)) ||
+          normalize(author).includes(normalize(name))
+        );
+
+      return titleMatches && authorMatches && book.cover_i;
+    });
+
+    const selectedBook =
+      matchedBook || results.find(book => book.cover_i);
+
+    if (!selectedBook) return "";
+
+    return `https://covers.openlibrary.org/b/id/${selectedBook.cover_i}-M.jpg`;
+  } catch (error) {
+    console.warn("Could not retrieve book cover:", error);
+    return "";
+  }
+}
+
+
 function getStatusLabel(status) {
   const labels = {
     reading: "Reading",
@@ -110,6 +162,81 @@ function updateStats() {
   finishedCount.textContent = String(finished).padStart(2, "0");
 }
 
+
+function renderGarden() {
+  const plantGrid = document.getElementById("plant-grid");
+  const plantTotal = document.getElementById("plant-total");
+  const seedCount = document.getElementById("seed-count");
+  const growingCount = document.getElementById("growing-count");
+  const bloomCount = document.getElementById("bloom-count");
+
+  if (
+    !plantGrid ||
+    !plantTotal ||
+    !seedCount ||
+    !growingCount ||
+    !bloomCount
+  ) {
+    return;
+  }
+
+  const seeds = books.filter(book => book.status === "want");
+  const growing = books.filter(book => book.status === "reading");
+  const blooming = books.filter(book => book.status === "finished");
+
+  const formatCount = number => String(number).padStart(2, "0");
+
+  plantTotal.textContent = `${formatCount(books.length)} PLANTS`;
+  seedCount.textContent = formatCount(seeds.length);
+  growingCount.textContent = formatCount(growing.length);
+  bloomCount.textContent = formatCount(blooming.length);
+
+  if (books.length === 0) {
+    plantGrid.innerHTML = `
+      <p class="plant-empty">
+        Your garden is waiting for its first story. Add a book to plant a seed.
+      </p>
+    `;
+    return;
+  }
+
+  plantGrid.innerHTML = books.map(book => {
+    let emoji;
+    let stage;
+
+    if (book.status === "finished") {
+      emoji = "🌼";
+      stage = "In bloom";
+    } else if (book.status === "reading") {
+      const progress = Number(book.progress) || 0;
+
+      if (progress >= 70) {
+        emoji = "🌿";
+      } else if (progress >= 35) {
+        emoji = "🌱";
+      } else {
+        emoji = "🌰";
+      }
+
+      stage = `Growing · ${progress}%`;
+    } else {
+      emoji = "🌰";
+      stage = "A little seed";
+    }
+
+    return `
+      <article class="plant-card">
+        <div class="plant-illustration" aria-hidden="true">
+          ${emoji}
+        </div>
+        <h3 class="plant-name">${escapeHTML(book.title)}</h3>
+        <span class="plant-stage">${stage}</span>
+      </article>
+    `;
+  }).join("");
+}
+
+
 function renderBooks() {
   const searchTerm = searchInput.value.trim().toLowerCase();
 
@@ -133,12 +260,24 @@ function renderBooks() {
 
     return `
       <article class="book-card">
-        <div class="book-cover cover-${(index % 3) + 1}">
-          <span class="cover-label">${getStatusLabel(book.status)}</span>
-          <div class="cover-title">${safeTitle}</div>
-          <div class="cover-author">${safeAuthor}</div>
-          <span class="cover-decoration" aria-hidden="true"></span>
-        </div>
+        
+<div class="book-cover cover-${(index % 3) + 1}">
+  ${
+    book.coverUrl
+      ? `<img
+          class="book-cover-image"
+          src="${escapeHTML(book.coverUrl)}"
+          alt="Cover of ${safeTitle}"
+          onerror="this.remove()"
+        >`
+      : ""
+  }
+  <span class="cover-label">${getStatusLabel(book.status)}</span>
+  <div class="cover-title">${safeTitle}</div>
+  <div class="cover-author">${safeAuthor}</div>
+  <span class="cover-decoration" aria-hidden="true"></span>
+</div>
+
 
         <div class="book-card-content">
           <div class="book-card-heading">
@@ -186,6 +325,7 @@ function renderBooks() {
   bookGrid.hidden = visibleBooks.length === 0;
   updateStats();
 }
+renderGarden();
 
 function openAddDialog() {
   editingBookId = null;
@@ -243,7 +383,7 @@ progressField.addEventListener("input", () => {
   progressValue.textContent = `${progressField.value}%`;
 });
 
-bookForm.addEventListener("submit", event => {
+bookForm.addEventListener("submit", async event => {
   event.preventDefault();
 
   const title = bookForm.elements.title.value.trim();
@@ -257,13 +397,36 @@ bookForm.addEventListener("submit", event => {
     return;
   }
 
+
+const existingBook = editingBookId
+    ? books.find(book => book.id === editingBookId)
+    : null;
+
+  let coverUrl = existingBook?.coverUrl || "";
+
+  const titleChanged =
+    existingBook &&
+    (existingBook.title !== title || existingBook.author !== author);
+
+  if (!existingBook || titleChanged) {
+    const foundCover = await searchBookCover(title, author);
+
+    if (foundCover) {
+      coverUrl = foundCover;
+    } else if (titleChanged) {
+      coverUrl = "";
+    }
+  }
+
   const bookData = {
     title,
     author,
     status,
     progress: Math.max(0, Math.min(100, progress)),
-    note
+    note,
+    coverUrl
   };
+
 
   if (editingBookId) {
     books = books.map(book =>
