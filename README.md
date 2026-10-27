@@ -9,3 +9,6 @@ Today, I set up the basic framework for the website and implemented features to 
 
 # 10.26
 Today, I added a "garden" section; the garden evolves from seeds into flowers in sync with your reading progress. Originally, I placed this section above the book section, but it didn't feel intuitive in terms of user flow, so I moved it below the books.
+
+# 10.27
+Today, I added a calendar feature, which makes tracking reading progress much more intuitive. Next, I’ll implement two-way synchronization between the bookshelf progress and the reading calendar, and then have some friends test it out.
