@@ -127,7 +127,96 @@
         No books found. Try another search or add a new story.
       </p>
     </section>
-    
+
+
+<section class="reading-calendar" aria-labelledby="calendar-title">
+  <div class="calendar-heading">
+    <div>
+      <p class="eyebrow">LITTLE BY LITTLE</p>
+      <h2 id="calendar-title">Reading calendar</h2>
+      <p class="garden-description">
+        Every page counts. Watch your reading habit grow.
+      </p>
+    </div>
+  </div>
+
+  <div class="calendar-summary">
+    <div class="calendar-stat">
+      <span>Reading days</span>
+      <strong id="calendar-reading-days">0</strong>
+      <small>days this month</small>
+    </div>
+    <div class="calendar-stat">
+      <span>Pages read</span>
+      <strong id="calendar-pages-read">0</strong>
+      <small>pages this month</small>
+    </div>
+  </div>
+
+  <div class="calendar-panel">
+    <div class="calendar-navigation">
+      <button type="button" class="text-button" id="calendar-prev"
+        aria-label="Previous month">←</button>
+      <h3 id="calendar-month-label">Month Year</h3>
+      <button type="button" class="text-button" id="calendar-next"
+        aria-label="Next month">→</button>
+    </div>
+
+    <div class="calendar-weekdays" aria-hidden="true">
+      <span>Mon</span>
+      <span>Tue</span>
+      <span>Wed</span>
+      <span>Thu</span>
+      <span>Fri</span>
+      <span>Sat</span>
+      <span>Sun</span>
+    </div>
+
+    <div class="calendar-grid" id="reading-calendar-grid"></div>
+
+    <p class="calendar-legend">
+      <span>Less</span>
+      <i class="heat-level-0"></i>
+      <i class="heat-level-1"></i>
+      <i class="heat-level-2"></i>
+      <i class="heat-level-3"></i>
+      <i class="heat-level-4"></i>
+      <span>More</span>
+    </p>
+  </div>
+
+  <div class="daily-reading-panel">
+    <h3 id="calendar-selected-date">Reading log</h3>
+    <p class="garden-description">
+      Record the latest page you reached in a book.
+    </p>
+
+    <form id="reading-log-form">
+      <label class="form-field">
+        Book
+        <select id="log-book-select" required>
+          <option value="">Choose a book</option>
+        </select>
+      </label>
+
+      <label class="form-field">
+        Latest page reached
+        <input id="log-page-input" type="number"
+          min="1" step="1" required>
+      </label>
+
+      <p id="log-current-page" class="calendar-help"></p>
+
+      <button type="submit" class="primary-button" id="log-save-button">
+        Save reading log
+      </button>
+    </form>
+
+    <div id="daily-log-list" class="daily-log-list"></div>
+  </div>
+</section>
+
+
 <section class="plant-garden" aria-labelledby="plant-garden-title">
   <div class="plant-garden-heading">
     <div>
@@ -183,6 +272,18 @@
           <option value="finished">Finished</option>
         </select>
       </label>
+      <label class="form-field">
+  Total pages
+  <input
+    name="totalPages"
+    type="number"
+    min="1"
+    max="100000"
+    step="1"
+    value="700"
+    required
+  >
+</label>
 
       <label class="form-field" id="progress-field">
         Reading progress <span id="progress-value">0%</span>

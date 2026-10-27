@@ -345,6 +345,7 @@ function openEditDialog(bookId) {
   bookForm.elements.title.value = book.title;
   bookForm.elements.author.value = book.author;
   bookForm.elements.status.value = book.status;
+  bookForm.elements.totalPages.value = book.totalPages || 700;
   bookForm.elements.progress.value = book.progress;
   bookForm.elements.note.value = book.note || "";
   progressValue.textContent = `${book.progress}%`;
@@ -389,6 +390,10 @@ bookForm.addEventListener("submit", async event => {
   const title = bookForm.elements.title.value.trim();
   const author = bookForm.elements.author.value.trim();
   const status = bookForm.elements.status.value;
+  const totalPages = Math.max(
+  1,
+  Number(bookForm.elements.totalPages.value) || 700
+);
   const progress = Number(bookForm.elements.progress.value);
   const note = bookForm.elements.note.value.trim();
 
@@ -422,6 +427,7 @@ const existingBook = editingBookId
     title,
     author,
     status,
+    totalPages,
     progress: Math.max(0, Math.min(100, progress)),
     note,
     coverUrl
@@ -466,5 +472,313 @@ bookGrid.addEventListener("click", event => {
     renderBooks();
   }
 });
+// ===== Reading Calendar =====
+
+const READING_LOG_KEY = "reading-garden-daily-logs";
+
+const calendarGrid = document.getElementById("reading-calendar-grid");
+const calendarMonthLabel = document.getElementById("calendar-month-label");
+const calendarReadingDays = document.getElementById("calendar-reading-days");
+const calendarPagesRead = document.getElementById("calendar-pages-read");
+const calendarSelectedDate = document.getElementById("calendar-selected-date");
+const logBookSelect = document.getElementById("log-book-select");
+const logPageInput = document.getElementById("log-page-input");
+const logCurrentPage = document.getElementById("log-current-page");
+const dailyLogList = document.getElementById("daily-log-list");
+const readingLogForm = document.getElementById("reading-log-form");
+
+function getLocalDateString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function loadReadingLogs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(READING_LOG_KEY));
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
+let readingLogs = loadReadingLogs();
+let calendarDate = new Date();
+let selectedReadingDate = getLocalDateString(new Date());
+
+function saveReadingLogs() {
+  localStorage.setItem(READING_LOG_KEY, JSON.stringify(readingLogs));
+}
+
+function getLogsForDate(dateString) {
+  return readingLogs.filter(log => log.date === dateString);
+}
+
+// Calculate pages read as the difference from the previous logged page.
+// For a book's first log, the entered page is counted as the starting total.
+function getPagesReadForDate(dateString) {
+  const todaysLogs = getLogsForDate(dateString);
+
+  return todaysLogs.reduce((total, log) => {
+    const previousLogs = readingLogs.filter(item =>
+      item.bookId === log.bookId && item.date < dateString
+    );
+
+    const previousPage = previousLogs.length
+      ? Math.max(...previousLogs.map(item => Number(item.page) || 0))
+      : 0;
+
+    return total + Math.max(0, Number(log.page) - previousPage);
+  }, 0);
+}
+
+function getHeatLevel(pages) {
+  if (pages <= 0) return 0;
+  if (pages <= 10) return 1;
+  if (pages <= 25) return 2;
+  if (pages <= 50) return 3;
+  return 4;
+}
+
+function renderCalendar() {
+  if (!calendarGrid) return;
+
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+
+  calendarMonthLabel.textContent = calendarDate.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
+
+  calendarGrid.innerHTML = "";
+
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let i = 0; i < firstWeekday; i++) {
+    const blank = document.createElement("div");
+    blank.className = "calendar-day calendar-day-empty";
+    blank.setAttribute("aria-hidden", "true");
+    calendarGrid.appendChild(blank);
+  }
+
+  let readingDays = 0;
+  let pagesThisMonth = 0;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateString = getLocalDateString(new Date(year, month, day));
+    const pages = getPagesReadForDate(dateString);
+    const hasReading = getLogsForDate(dateString).length > 0;
+
+    if (hasReading) readingDays++;
+    pagesThisMonth += pages;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `calendar-day heat-level-${getHeatLevel(pages)}`;
+    button.textContent = day;
+    button.dataset.date = dateString;
+    button.setAttribute(
+      "aria-label",
+      `${dateString}: ${pages} pages logged`
+    );
+
+    if (dateString === selectedReadingDate) {
+      button.classList.add("selected");
+    }
+
+    if (dateString === getLocalDateString(new Date())) {
+      button.classList.add("today");
+    }
+
+    button.addEventListener("click", () => {
+      selectedReadingDate = dateString;
+      renderCalendar();
+      renderDailyLog();
+    });
+
+    calendarGrid.appendChild(button);
+  }
+
+  calendarReadingDays.textContent = readingDays;
+  calendarPagesRead.textContent = pagesThisMonth;
+}
+
+function renderBookOptions() {
+  const previousBookId = logBookSelect.value;
+  logBookSelect.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose a book";
+  logBookSelect.appendChild(placeholder);
+
+  books.forEach(book => {
+    const option = document.createElement("option");
+    option.value = book.id;
+    option.textContent = `${book.title} — ${book.author || "Unknown author"}`;
+    logBookSelect.appendChild(option);
+  });
+
+  if (books.some(book => book.id === previousBookId)) {
+    logBookSelect.value = previousBookId;
+  } else if (books.length > 0) {
+    logBookSelect.value = books[0].id;
+  }
+
+  updateLogPageInput();
+}
+
+function updateLogPageInput() {
+  const book = books.find(item => item.id === logBookSelect.value);
+
+  if (!book) {
+    logPageInput.value = "";
+    logPageInput.removeAttribute("max");
+    logCurrentPage.textContent = books.length
+      ? "Choose a book to record your reading."
+      : "Add a book to your shelf before recording reading.";
+    return;
+  }
+
+  const totalPages = Math.max(1, Number(book.totalPages) || 300);
+  const existingLog = readingLogs.find(log =>
+    log.date === selectedReadingDate && log.bookId === book.id
+  );
+
+  const currentPage = existingLog
+    ? Number(existingLog.page)
+    : Math.round((Number(book.progress) || 0) / 100 * totalPages);
+
+  logPageInput.max = totalPages;
+  logPageInput.value = currentPage > 0 ? currentPage : "";
+
+  logCurrentPage.textContent =
+    `Book length: ${totalPages} pages. ` +
+    `Current saved progress: ${book.progress || 0}%.`;
+}
+
+function renderDailyLog() {
+  const date = new Date(`${selectedReadingDate}T12:00:00`);
+
+  calendarSelectedDate.textContent = date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+
+  renderBookOptions();
+  dailyLogList.innerHTML = "";
+
+  const todaysLogs = getLogsForDate(selectedReadingDate)
+    .filter(log => books.some(book => book.id === log.bookId));
+
+  if (todaysLogs.length === 0) {
+    dailyLogList.textContent = "No reading logged for this day yet.";
+    return;
+  }
+
+  todaysLogs.forEach(log => {
+    const book = books.find(item => item.id === log.bookId);
+    if (!book) return;
+
+    const entry = document.createElement("div");
+    entry.className = "daily-log-entry";
+
+    const title = document.createElement("strong");
+    title.textContent = book.title;
+
+    const page = document.createElement("span");
+    page.textContent = `Latest page: ${log.page} / ${book.totalPages || 300}`;
+
+    entry.append(title, page);
+    dailyLogList.appendChild(entry);
+  });
+}
+
+document.getElementById("calendar-prev").addEventListener("click", () => {
+  calendarDate = new Date(
+    calendarDate.getFullYear(),
+    calendarDate.getMonth() - 1,
+    1
+  );
+  selectedReadingDate = getLocalDateString(calendarDate);
+  renderCalendar();
+  renderDailyLog();
+});
+
+document.getElementById("calendar-next").addEventListener("click", () => {
+  calendarDate = new Date(
+    calendarDate.getFullYear(),
+    calendarDate.getMonth() + 1,
+    1
+  );
+  selectedReadingDate = getLocalDateString(calendarDate);
+  renderCalendar();
+  renderDailyLog();
+});
+
+logBookSelect.addEventListener("change", updateLogPageInput);
+
+readingLogForm.addEventListener("submit", event => {
+  event.preventDefault();
+
+  const book = books.find(item => item.id === logBookSelect.value);
+  const page = Number(logPageInput.value);
+
+  if (!book) {
+    alert("Please choose a book first.");
+    return;
+  }
+
+  const totalPages = Math.max(1, Number(book.totalPages) || 300);
+
+  if (!Number.isInteger(page) || page < 1 || page > totalPages) {
+    alert(`Please enter a page between 1 and ${totalPages}.`);
+    return;
+  }
+
+  // Keep only one latest-page record per book per day.
+  readingLogs = readingLogs.filter(log =>
+    !(log.date === selectedReadingDate && log.bookId === book.id)
+  );
+
+  readingLogs.push({
+    date: selectedReadingDate,
+    bookId: book.id,
+    page
+  });
+
+  const progress = Math.min(100, Math.round(page / totalPages * 100));
+
+  books = books.map(item => {
+    if (item.id !== book.id) return item;
+
+    return {
+      ...item,
+      progress,
+      status: progress >= 100
+        ? "finished"
+        : item.status === "want"
+          ? "reading"
+          : item.status
+    };
+  });
+
+  saveReadingLogs();
+  saveBooks();
+  renderBooks();
+  renderGarden();
+  renderCalendar();
+  renderDailyLog();
+});
+
+renderCalendar();
+renderDailyLog();
+
+// ===== End Reading Calendar =====
 
 renderBooks();
