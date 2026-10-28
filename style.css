@@ -1203,3 +1203,153 @@ h2 {
 }
 
 /* ===== End Reading Calendar ===== */
+
+
+/* Monthly Reading Report */
+.monthly-report {
+  margin: 28px 0;
+  padding: 24px;
+  border: 1px solid #dce5d5;
+  border-radius: 18px;
+  background: #fafbf7;
+  color: #354536;
+}
+
+.monthly-report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.monthly-report-header h2 {
+  margin: 6px 0;
+}
+
+#report-month-label {
+  margin: 0;
+  color: #7b8874;
+  font-size: 0.9rem;
+}
+
+.report-month-navigation {
+  display: flex;
+  gap: 8px;
+}
+
+.report-month-navigation button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dce5d5;
+  border-radius: 10px;
+  background: #fff;
+  color: #52664b;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.report-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.report-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 12px;
+  background: #eef3e8;
+}
+
+.report-stat-label {
+  color: #687b5e;
+  font-size: 0.85rem;
+}
+
+.report-stat-card strong {
+  color: #40563a;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.report-stat-unit {
+  color: #7b8874;
+  font-size: 0.75rem;
+}
+
+.report-calendar-panel {
+  padding: 20px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.report-calendar-panel h3 {
+  margin-top: 0;
+}
+
+.report-calendar-description {
+  color: #7b8874;
+  font-size: 0.9rem;
+}
+
+.report-reading-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.report-reading-day {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #f0f2ed;
+  color: #65715e;
+  font-size: 0.85rem;
+}
+
+.report-reading-day.has-reading {
+  background: #b8cdaa;
+  color: #30472b;
+}
+
+.report-reading-day.empty {
+  background: transparent;
+}
+
+@media (max-width: 700px) {
+  .report-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .monthly-report {
+    padding: 16px;
+  }
+
+  .report-calendar-panel {
+    padding: 12px;
+  }
+
+  .report-reading-calendar {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 380px) {
+  .monthly-report-header {
+    align-items: flex-start;
+  }
+
+  .report-stat-card {
+    padding: 12px;
+  }
+
+  .report-stat-card strong {
+    font-size: 1.6rem;
+  }
+}

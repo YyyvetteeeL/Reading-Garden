@@ -434,6 +434,7 @@ const existingBook = editingBookId
   };
 
 
+
   if (editingBookId) {
     books = books.map(book =>
       book.id === editingBookId ? { ...book, ...bookData } : book
@@ -444,10 +445,46 @@ const existingBook = editingBookId
       ...bookData
     });
   }
+// Sync bookshelf progress changes to today's reading log.
+if (editingBookId && existingBook) {
+  const newProgress = Math.max(
+    0,
+    Math.min(100, Number(bookData.progress) || 0)
+  );
 
+  const oldProgress = Number(existingBook.progress) || 0;
+  const oldTotalPages = Number(existingBook.totalPages) || 300;
+  const newTotalPages = Number(bookData.totalPages) || oldTotalPages;
+
+  const progressChanged = newProgress !== oldProgress;
+
+  if (progressChanged) {
+    const today = getLocalDateString(new Date());
+    const latestPage = Math.round(newProgress / 100 * newTotalPages);
+
+    // Replace today's log for this book instead of creating a duplicate.
+    readingLogs = readingLogs.filter(log =>
+      !(log.date === today && log.bookId === editingBookId)
+    );
+
+    if (latestPage > 0) {
+      readingLogs.push({
+        date: today,
+        bookId: editingBookId,
+        page: latestPage
+      });
+    }
+
+    saveReadingLogs();
+  }
+}
   saveBooks();
-  closeDialog();
-  renderBooks();
+closeDialog();
+renderBooks();
+renderGarden();
+renderCalendar();
+renderDailyLog();
+renderMonthlyReport();
 });
 
 bookGrid.addEventListener("click", event => {
@@ -532,6 +569,121 @@ function getPagesReadForDate(dateString) {
     return total + Math.max(0, Number(log.page) - previousPage);
   }, 0);
 }
+
+
+let reportDate = new Date();
+
+function renderMonthlyReport() {
+  const year = reportDate.getFullYear();
+  const month = reportDate.getMonth();
+
+  const monthStart = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const monthLabel = document.getElementById("report-month-label");
+  const pagesElement = document.getElementById("report-pages-read");
+  const daysElement = document.getElementById("report-reading-days");
+  const averageElement = document.getElementById("report-daily-average");
+  const finishedElement = document.getElementById("report-books-finished");
+  const calendarElement = document.getElementById("report-reading-calendar");
+
+  if (
+    !monthLabel ||
+    !pagesElement ||
+    !daysElement ||
+    !averageElement ||
+    !finishedElement ||
+    !calendarElement
+  ) {
+    return;
+  }
+
+  monthLabel.textContent = monthStart.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
+
+  let totalPages = 0;
+  let readingDays = 0;
+  const readingDates = new Set();
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = getLocalDateString(new Date(year, month, day));
+    const logs = getLogsForDate(date);
+
+    const pages = getPagesReadForDate(date);
+
+    if (logs.length > 0) {
+      readingDates.add(date);
+    }
+
+    if (pages > 0) {
+      totalPages += pages;
+    }
+  }
+
+  readingDays = readingDates.size;
+
+  pagesElement.textContent = totalPages;
+  daysElement.textContent = readingDays;
+  averageElement.textContent = readingDays
+    ? Math.round(totalPages / readingDays)
+    : 0;
+
+  // Completion dates are not stored separately yet.
+  // Avoid counting old finished books as completed this month.
+  finishedElement.textContent = "—";
+
+  calendarElement.innerHTML = "";
+
+  // Add blank cells so the first day aligns with its weekday.
+  const firstWeekday = monthStart.getDay();
+
+  for (let i = 0; i < firstWeekday; i++) {
+    const blank = document.createElement("div");
+    blank.className = "report-reading-day empty";
+    calendarElement.appendChild(blank);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = getLocalDateString(new Date(year, month, day));
+    const hasReading = readingDates.has(date);
+
+    const cell = document.createElement("div");
+    cell.className = "report-reading-day";
+    if (hasReading) {
+      cell.classList.add("has-reading");
+    }
+
+    cell.textContent = day;
+    cell.title = hasReading
+      ? `${date}: reading logged`
+      : `${date}: no reading logged`;
+
+    calendarElement.appendChild(cell);
+  }
+}
+
+document.getElementById("report-prev-month")?.addEventListener("click", () => {
+  reportDate = new Date(
+    reportDate.getFullYear(),
+    reportDate.getMonth() - 1,
+    1
+  );
+  renderMonthlyReport();
+});
+
+document.getElementById("report-next-month")?.addEventListener("click", () => {
+  reportDate = new Date(
+    reportDate.getFullYear(),
+    reportDate.getMonth() + 1,
+    1
+  );
+  renderMonthlyReport();
+});
+
+renderMonthlyReport();
+
 
 function getHeatLevel(pages) {
   if (pages <= 0) return 0;
