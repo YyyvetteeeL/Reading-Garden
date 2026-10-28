@@ -15,6 +15,14 @@ The primary user workflow is as follows: the user adds a book → updates their 
 Reading Garden is built using native HTML, CSS, and JavaScript, without a frontend framework or backend database.
 
 # How to run it
+Download or clone this repository.
+Open the project folder in Visual Studio Code.
+Install the Live Server extension from the VS Code Extensions Marketplace.
+Locate index.html in the project root directory.
+Right-click index.html and select Open with Live Server.
+The application will open in your default browser and be ready to use.
+
+or
 https://yyyvetteeel.github.io/Reading-Garden/
 Open it :)
 
