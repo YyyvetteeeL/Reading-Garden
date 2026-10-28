@@ -14,3 +14,6 @@ I realized that I had included instructions on what to uninstall for the PROCESS
 
 # 10.28
 I added a calendar feature today. After I invited a friend to use it, they suggested that since there’s already a calendar, it would be great to include a monthly report function as well. I took this suggestion on board and have now implemented it.
+
+# Use
+Used ChatGPT to write code.
